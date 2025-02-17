@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 游戏</title>
+    <style>
+        /* 内联样式，避免加载外部CSS文件 */
+        :root {
+            --bg-color: #faf8ef;
+            --grid-color: #bbada0;
+            --cell-empty-color: #cdc1b4;
+            --text-dark: #776e65;
+            --text-light: #f9f6f2;
+            --button-bg: #8f7a66;
+            --button-hover: #9f8b76;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+        }
+
+        #game-container {
+            text-align: center;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .game-info {
+            padding: 8px 15px;
+            background: var(--button-bg);
+            color: var(--text-light);
+            border-radius: 6px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .mode-selector {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            background: var(--button-bg);
+            color: var(--text-light);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .mode-btn:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+        }
+
+        .mode-btn.active {
+            background: var(--text-dark);
+        }
+
+        #gameCanvas {
+            background: var(--grid-color);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 20px 0;
+        }
+
+        #new-game-btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: var(--button-bg);
+            color: var(--text-light);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #new-game-btn:hover {
+            background: var(--button-hover);
+        }
+
+        .direction-buttons {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .horizontal-buttons {
+            display: flex;
+            gap: 40px;
+        }
+
+        .dir-btn {
+            width: 50px;
+            height: 50px;
+            background: var(--button-bg);
+            color: var(--text-light);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .dir-btn:hover {
+            background: var(--button-hover);
+            transform: scale(1.1);
+        }
+
+        /* 在移动端隐藏方向按钮 */
+        @media (min-width: 768px) {
+            .direction-buttons {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="game-header">
+            <div id="score" class="game-info">分数: 0</div>
+            <div id="timer" class="game-info">时间: 0秒</div>
+        </div>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="game.changeMode('normal')">普通模式</button>
+            <button class="mode-btn" onclick="game.changeMode('time_challenge', 60)">1分钟挑战</button>
+            <button class="mode-btn" onclick="game.changeMode('time_challenge', 300)">5分钟挑战</button>
+            <button class="mode-btn" onclick="game.changeMode('time_challenge', 600)">10分钟挑战</button>
+        </div>
+
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <button id="new-game-btn">新游戏</button>
+        
+        <!-- 添加方向按钮 -->
+        <div class="direction-buttons">
+            <button class="dir-btn up" onclick="game.move('up')">↑</button>
+            <div class="horizontal-buttons">
+                <button class="dir-btn left" onclick="game.move('left')">←</button>
+                <button class="dir-btn right" onclick="game.move('right')">→</button>
+            </div>
+            <button class="dir-btn down" onclick="game.move('down')">↓</button>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 4;
+        const CELL_SIZE = 100;
+        const CELL_SPACING = 10;
+
+        class Game2048 {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+                this.score = 0;
+                this.startTime = Date.now();
+                this.gameMode = 'normal';
+                this.timeLimit = null;
+                this.colors = {
+                    2: "#eee4da",
+                    4: "#ede0c8",
+                    8: "#f2b179",
+                    16: "#f59563",
+                    32: "#f67c5f",
+                    64: "#f65e3b",
+                    128: "#edcf72",
+                    256: "#edcc61",
+                    512: "#edc850",
+                    1024: "#edc53f",
+                    2048: "#edc22e"
+                };
+
+                this.init();
+                this.setupEventListeners();
+            }
+
+            init() {
+                this.grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+                this.score = 0;
+                this.startTime = Date.now();
+                this.addNewTile();
+                this.addNewTile();
+                this.draw();
+                this.updateScore();
+            }
+
+            addNewTile() {
+                const emptyCells = [];
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    for (let j = 0; j < GRID_SIZE; j++) {
+                        if (this.grid[i][j] === 0) {
+                            emptyCells.push([i, j]);
+                        }
+                    }
+                }
+                if (emptyCells.length) {
+                    const [i, j] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                    this.grid[i][j] = Math.random() < 0.9 ? 2 : 4;
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    for (let j = 0; j < GRID_SIZE; j++) {
+                        const value = this.grid[i][j];
+                        const x = j * CELL_SIZE + CELL_SPACING;
+                        const y = i * CELL_SIZE + CELL_SPACING;
+                        const width = CELL_SIZE - 2 * CELL_SPACING;
+                        const height = CELL_SIZE - 2 * CELL_SPACING;
+
+                        // 绘制方块背景（使用普通矩形和圆角效果）
+                        this.ctx.fillStyle = value === 0 ? '#cdc1b4' : this.colors[value];
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(x + 8, y);
+                        this.ctx.lineTo(x + width - 8, y);
+                        this.ctx.quadraticCurveTo(x + width, y, x + width, y + 8);
+                        this.ctx.lineTo(x + width, y + height - 8);
+                        this.ctx.quadraticCurveTo(x + width, y + height, x + width - 8, y + height);
+                        this.ctx.lineTo(x + 8, y + height);
+                        this.ctx.quadraticCurveTo(x, y + height, x, y + height - 8);
+                        this.ctx.lineTo(x, y + 8);
+                        this.ctx.quadraticCurveTo(x, y, x + 8, y);
+                        this.ctx.closePath();
+                        this.ctx.fill();
+
+                        if (value !== 0) {
+                            // 绘制数字
+                            this.ctx.fillStyle = value <= 4 ? '#776e65' : '#f9f6f2';
+                            this.ctx.font = `bold ${value < 1024 ? 36 : 30}px Arial`;
+                            this.ctx.textAlign = 'center';
+                            this.ctx.textBaseline = 'middle';
+                            this.ctx.fillText(value.toString(), x + width/2, y + height/2);
+                        }
+                    }
+                }
+            }
+
+            updateScore() {
+                document.getElementById('score').textContent = `分数: ${this.score}`;
+            }
+
+            setupEventListeners() {
+                document.addEventListener('keydown', (event) => {
+                    if (event.key.startsWith('Arrow')) {
+                        event.preventDefault();
+                        const direction = event.key.replace('Arrow', '').toLowerCase();
+                        this.move(direction);
+                    }
+                });
+
+                document.getElementById('new-game-btn').addEventListener('click', () => {
+                    this.init();
+                });
+            }
+
+            changeMode(mode, timeLimit = null) {
+                // 更新按钮状态
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if ((mode === 'normal' && btn.textContent === '普通模式') ||
+                        (mode === 'time_challenge' && timeLimit && 
+                         btn.textContent.includes(timeLimit/60))) {
+                        btn.classList.add('active');
+                    }
+                });
+
+                this.gameMode = mode;
+                this.timeLimit = timeLimit;
+                this.init();
+            }
+
+            move(direction) {
+                let moved = false;
+                const newGrid = JSON.parse(JSON.stringify(this.grid));
+
+                // 移动和合并逻辑
+                if (direction === 'up' || direction === 'down') {
+                    for (let j = 0; j < GRID_SIZE; j++) {
+                        const column = this.grid.map(row => row[j]);
+                        const newColumn = this.mergeLine(direction === 'up' ? column : column.reverse());
+                        if (direction === 'down') newColumn.reverse();
+                        
+                        for (let i = 0; i < GRID_SIZE; i++) {
+                            if (this.grid[i][j] !== newColumn[i]) {
+                                moved = true;
+                                this.grid[i][j] = newColumn[i];
+                            }
+                        }
+                    }
+                } else {
+                    for (let i = 0; i < GRID_SIZE; i++) {
+                        const row = this.grid[i].slice();
+                        const newRow = this.mergeLine(direction === 'left' ? row : row.reverse());
+                        if (direction === 'right') newRow.reverse();
+                        
+                        if (JSON.stringify(this.grid[i]) !== JSON.stringify(newRow)) {
+                            moved = true;
+                            this.grid[i] = newRow;
+                        }
+                    }
+                }
+
+                if (moved) {
+                    this.addNewTile();
+                    this.draw();
+                    this.updateScore();
+                }
+
+                if (this.isGameOver()) {
+                    alert(`游戏结束！最终得分：${this.score}`);
+                }
+            }
+
+            mergeLine(line) {
+                // 移除空格
+                let numbers = line.filter(x => x !== 0);
+                
+                // 合并相同的数字
+                for (let i = 0; i < numbers.length - 1; i++) {
+                    if (numbers[i] === numbers[i + 1]) {
+                        numbers[i] *= 2;
+                        this.score += numbers[i];
+                        numbers.splice(i + 1, 1);
+                    }
+                }
+                
+                // 补充空格
+                while (numbers.length < GRID_SIZE) {
+                    numbers.push(0);
+                }
+                
+                return numbers;
+            }
+
+            isGameOver() {
+                // 检查是否还有空格
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    for (let j = 0; j < GRID_SIZE; j++) {
+                        if (this.grid[i][j] === 0) return false;
+                    }
+                }
+
+                // 检查是否还能合并
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    for (let j = 0; j < GRID_SIZE; j++) {
+                        const current = this.grid[i][j];
+                        if ((i < GRID_SIZE - 1 && current === this.grid[i + 1][j]) ||
+                            (j < GRID_SIZE - 1 && current === this.grid[i][j + 1])) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        // 创建游戏实例
+        const game = new Game2048();
+
+        // 添加计时器更新
+        setInterval(() => {
+            const timerElement = document.getElementById('timer');
+            const currentTime = Date.now();
+            const elapsedSeconds = Math.floor((currentTime - game.startTime) / 1000);
+            
+            if (game.gameMode === 'time_challenge' && game.timeLimit) {
+                const remainingSeconds = Math.max(0, game.timeLimit - elapsedSeconds);
+                timerElement.textContent = `剩余时间: ${remainingSeconds}秒`;
+                
+                if (remainingSeconds === 0) {
+                    alert(`时间到！最终得分：${game.score}`);
+                    game.init();
+                }
+            } else {
+                timerElement.textContent = `时间: ${elapsedSeconds}秒`;
+            }
+        }, 1000);
+    </script>
+</body>
+</html> 
