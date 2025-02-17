@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Game</title>
+    <link rel="stylesheet" href="/static/skins.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+        }
+        #game-container {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid var(--grid-color);
+            border-radius: 5px;
+        }
+        #new-game-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: var(--button-bg);
+            color: var(--text-light);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #new-game-btn:hover {
+            background-color: var(--button-hover);
+        }
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .game-info {
+            padding: 8px 15px;
+            background: var(--button-bg);
+            color: var(--text-light);
+            border-radius: 6px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .mode-selector {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .mode-btn {
+            padding: 8px 16px;
+            background: var(--button-bg);
+            color: var(--text-light);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .mode-btn:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+        }
+        .mode-btn.active {
+            background: var(--text-dark);
+            color: var(--text-light);
+        }
+        .skin-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .skin-select {
+            padding: 8px 16px;
+            font-size: 16px;
+            border: 2px solid var(--button-bg);
+            border-radius: 6px;
+            background: var(--bg-color);
+            color: var(--text-dark);
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .skin-select:hover {
+            border-color: var(--button-hover);
+        }
+        .skin-select option {
+            background: var(--bg-color);
+            color: var(--text-dark);
+            padding: 8px;
+        }
+        .skin-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+            display: inline-block;
+            border: 2px solid transparent;
+        }
+        .skin-preview.active {
+            border-color: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="game-header">
+            <div id="score" class="game-info">分数: 0</div>
+            <div id="timer" class="game-info">时间: 0秒</div>
+        </div>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="changeMode('normal')">普通模式</button>
+            <button class="mode-btn" onclick="changeMode('time_challenge', 60)">1分钟挑战</button>
+            <button class="mode-btn" onclick="changeMode('time_challenge', 300)">5分钟挑战</button>
+            <button class="mode-btn" onclick="changeMode('time_challenge', 600)">10分钟挑战</button>
+        </div>
+        
+        <div class="skin-selector">
+            <select class="skin-select" onchange="changeSkin(this.value)">
+                <option value="default">默认皮肤</option>
+                <option value="dark">暗黑模式</option>
+                <option value="neon">霓虹风格</option>
+                <option value="wooden">木质风格</option>
+            </select>
+        </div>
+        
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <br>
+        <button id="new-game-btn">新游戏</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const cellSize = 100;
+        const gridSize = 4;
+
+        const colors = {
+            2: "#eee4da",
+            4: "#ede0c8",
+            8: "#f2b179",
+            16: "#f59563",
+            32: "#f67c5f",
+            64: "#f65e3b",
+            128: "#edcf72",
+            256: "#edcc61",
+            512: "#edc850",
+            1024: "#edc53f",
+            2048: "#edc22e"
+        };
+
+        let grid = [];
+        let startTime = Date.now();
+        let gameMode = 'normal';
+        let timeLimit = null;
+
+        const AUDIO_DATA = {
+            merge: 'data:audio/wav;base64,UklGRh4AAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=', // 简短的滴答声
+            move: 'data:audio/wav;base64,UklGRh4AAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',  // 轻微的滑动声
+            gameOver: 'data:audio/wav;base64,UklGRh4AAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=' // 游戏结束音效
+        };
+
+        const sounds = {
+            merge: new Audio(AUDIO_DATA.merge),
+            move: new Audio(AUDIO_DATA.move),
+            gameOver: new Audio(AUDIO_DATA.gameOver)
+        };
+
+        function playSound(soundName) {
+            if (sounds[soundName]) {
+                sounds[soundName].currentTime = 0;
+                sounds[soundName].play();
+            }
+        }
+
+        function drawGrid() {
+            ctx.fillStyle = "#bbada0";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const value = grid[i][j];
+                    const x = j * cellSize;
+                    const y = i * cellSize;
+
+                    ctx.fillStyle = value === 0 ? "#cdc1b4" : colors[value] || "#3c3a32";
+                    ctx.fillRect(x + 5, y + 5, cellSize - 10, cellSize - 10);
+
+                    if (value !== 0) {
+                        ctx.fillStyle = value <= 4 ? "#776e65" : "#f9f6f2";
+                        ctx.font = `${value < 1024 ? 36 : 30}px Arial`;
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(value.toString(), x + cellSize / 2, y + cellSize / 2);
+                    }
+                }
+            }
+        }
+
+        async function newGame() {
+            const response = await fetch('/new_game', { method: 'POST' });
+            const data = await response.json();
+            grid = data.grid;
+            document.getElementById('score').textContent = `分数: ${data.score}`;
+            startTime = Date.now();
+            drawGrid();
+        }
+
+        async function move(direction) {
+            const response = await fetch('/move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ direction }),
+            });
+            const data = await response.json();
+            grid = data.grid;
+            document.getElementById('score').textContent = `分数: ${data.score}`;
+            
+            if (data.moved) {
+                playSound('move');
+            }
+            if (data.merged) {
+                playSound('merge');
+            }
+            
+            drawGrid();
+
+            if (data.game_over) {
+                playSound('gameOver');
+                alert(`游戏结束！最终得分：${data.score}`);
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            const key = event.key;
+            if (key === 'ArrowUp') move('up');
+            else if (key === 'ArrowDown') move('down');
+            else if (key === 'ArrowLeft') move('left');
+            else if (key === 'ArrowRight') move('right');
+        });
+
+        document.getElementById('new-game-btn').addEventListener('click', newGame);
+
+        async function changeMode(mode, limit) {
+            // 更新按钮激活状态
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if ((mode === 'normal' && btn.textContent === '普通模式') ||
+                    (mode === 'time_challenge' && btn.textContent.includes(limit/60))) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            gameMode = mode;
+            timeLimit = limit;
+            startTime = Date.now();
+            
+            const response = await fetch('/change_mode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ mode, time_limit: limit }),
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                newGame();
+            }
+        }
+
+        async function changeSkin(skin) {
+            document.body.setAttribute('data-theme', skin);
+            colors = skinColors[skin];
+            drawGrid();
+            
+            // 保存皮肤选择
+            localStorage.setItem('2048-skin', skin);
+        }
+
+        // 初始化时加载保存的皮肤
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedSkin = localStorage.getItem('2048-skin');
+            if (savedSkin) {
+                document.querySelector('.skin-select').value = savedSkin;
+                changeSkin(savedSkin);
+            }
+        });
+
+        function updateTimer() {
+            const timerElement = document.getElementById('timer');
+            const currentTime = Date.now();
+            const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+            
+            if (gameMode === 'time_challenge' && timeLimit) {
+                const remainingSeconds = Math.max(0, timeLimit - elapsedSeconds);
+                timerElement.textContent = `剩余时间: ${remainingSeconds}秒`;
+                
+                if (remainingSeconds === 0) {
+                    alert(`时间到！最终得分：${document.getElementById('score').textContent}`);
+                    newGame();
+                }
+            } else {
+                timerElement.textContent = `时间: ${elapsedSeconds}秒`;
+            }
+        }
+
+        setInterval(updateTimer, 1000);
+
+        newGame();
+    </script>
+</body>
+</html>
+

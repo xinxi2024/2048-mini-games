@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.db
+
+# Pygame
+*.pygame
+
+# 环境文件
+.env
+venv/ 

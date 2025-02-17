@@ -1,0 +1,44 @@
+/* 扩展皮肤样式 */
+:root {
+    /* 默认皮肤 */
+    --bg-color: #faf8ef;
+    --grid-color: #bbada0;
+    --cell-empty-color: #cdc1b4;
+    --text-dark: #776e65;
+    --text-light: #f9f6f2;
+    --button-bg: #8f7a66;
+    --button-hover: #9f8b76;
+}
+
+/* 暗黑模式 */
+[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --grid-color: #2d2d2d;
+    --cell-empty-color: #3d3d3d;
+    --text-dark: #d4d4d4;
+    --text-light: #ffffff;
+    --button-bg: #4a4a4a;
+    --button-hover: #5a5a5a;
+}
+
+/* 霓虹风格 */
+[data-theme="neon"] {
+    --bg-color: #000000;
+    --grid-color: #ff00ff;
+    --cell-empty-color: #00ffff;
+    --text-dark: #00ff00;
+    --text-light: #ffff00;
+    --button-bg: #ff00ff;
+    --button-hover: #ff60ff;
+}
+
+/* 木质风格 */
+[data-theme="wooden"] {
+    --bg-color: #8b4513;
+    --grid-color: #654321;
+    --cell-empty-color: #a0522d;
+    --text-dark: #deb887;
+    --text-light: #f5deb3;
+    --button-bg: #d2691e;
+    --button-hover: #cd853f;
+} 
