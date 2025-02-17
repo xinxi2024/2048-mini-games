@@ -35,32 +35,8 @@
 
 ## 本地运行
 
-1. 克隆仓库：
-   ```bash
-   git clone https://github.com/your-username/2048-static.git
-   cd 2048-static
-   ```
+1. 使用本地服务运行index.html即可
 
-2. 使用本地服务器运行（任选其一）：
-   ```bash
-   # 使用 Python
-   python -m http.server 8000
-
-   # 或使用 Node.js 的 http-server
-   npx http-server
-   ```
-
-3. 在浏览器中访问 `http://localhost:8000`
-
-## 部署到 Netlify
-
-1. Fork 这个仓库到你的 GitHub 账号
-
-2. 在 Netlify 中：
-   - 点击 "New site from Git"
-   - 选择你的 GitHub 仓库
-   - 构建设置保持默认
-   - 点击 "Deploy site"
 
 ## 游戏操作
 
