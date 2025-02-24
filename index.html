@@ -130,8 +130,8 @@
             transform: scale(1.1);
         }
 
-        /* 在移动端隐藏方向按钮 */
-        @media (min-width: 768px) {
+        /* 修改媒体查询规则 */
+        @media (min-width: 768px) and (orientation: landscape) {
             .direction-buttons {
                 display: none;
             }
@@ -277,6 +277,53 @@
                 document.getElementById('new-game-btn').addEventListener('click', () => {
                     this.init();
                 });
+
+                // 添加触摸事件处理
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchEndX = 0;
+                let touchEndY = 0;
+
+                this.canvas.addEventListener('touchstart', (event) => {
+                    event.preventDefault();
+                    touchStartX = event.touches[0].clientX;
+                    touchStartY = event.touches[0].clientY;
+                }, false);
+
+                this.canvas.addEventListener('touchmove', (event) => {
+                    event.preventDefault();
+                }, false);
+
+                this.canvas.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    touchEndX = event.changedTouches[0].clientX;
+                    touchEndY = event.changedTouches[0].clientY;
+
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = touchEndY - touchStartY;
+                    const minSwipeDistance = 30; // 最小滑动距离
+
+                    // 确定滑动方向
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        // 水平滑动
+                        if (Math.abs(deltaX) > minSwipeDistance) {
+                            if (deltaX > 0) {
+                                this.move('right');
+                            } else {
+                                this.move('left');
+                            }
+                        }
+                    } else {
+                        // 垂直滑动
+                        if (Math.abs(deltaY) > minSwipeDistance) {
+                            if (deltaY > 0) {
+                                this.move('down');
+                            } else {
+                                this.move('up');
+                            }
+                        }
+                    }
+                }, false);
             }
 
             changeMode(mode, timeLimit = null) {
